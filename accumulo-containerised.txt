@@ -1,0 +1,229 @@
+############################################################################
+# Containerised Accumulo
+############################################################################
+
+Table of contents:
+
+A. Create network
+B. HDFS
+C. Zookeeper
+D. Accumulo
+E. Usage notes
+F. Next steps
+
+The objective is to set up a resilient Accumulo cluster, you therefore need
+to run each of the Accumulo prcesses in its own container, so that failure
+can be more easily detected and recovered.
+
+To spin up a containerised Accumulo cluster, run the following commands.
+
+############################################################################
+# A. Create network
+############################################################################
+
+docker network create --driver=bridge --subnet=10.10.0.0/16 my_network
+
+############################################################################
+# B. HDFS
+############################################################################
+
+# Namenode
+docker run -d --ip=10.10.6.3 --net my_network \
+    -e DAEMONS=namenode,datanode,secondarynamenode \
+    --name=hadoop01 \
+    -p 50070:50070 -p 50075:50075 -p 50090:50090 -p 9000:9000 \
+    cybermaggedon/hadoop:2.8.0
+
+# Datanodes
+docker run -d --ip=10.10.6.4 --net my_network --link hadoop01:hadoop01 \
+    -e DAEMONS=datanode -e NAMENODE_URI=hdfs://hadoop01:9000 \
+    --name=hadoop02 \
+    cybermaggedon/hadoop:2.8.0
+
+docker run -d --ip=10.10.6.5 --net my_network --link hadoop01:hadoop01 \
+    -e DAEMONS=datanode -e NAMENODE_URI=hdfs://hadoop01:9000 \
+    --name=hadoop03 \
+    cybermaggedon/hadoop:2.8.0
+
+############################################################################
+# C. Zookeeper cluster, 3 nodes.
+############################################################################
+
+docker run -d --ip=10.10.5.10 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e ZOOKEEPER_MYID=1 \
+    --name zk1 -p 2181:2181 cybermaggedon/zookeeper:3.4.10
+
+docker run -d --ip=10.10.5.11 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e ZOOKEEPER_MYID=2 --name zk2 --link zk1:zk1 \
+    cybermaggedon/zookeeper:3.4.10
+
+docker run -d --ip=10.10.5.12 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e ZOOKEEPER_MYID=3 --name zk3 --link zk1:zk1 \
+    cybermaggedon/zookeeper:3.4.10
+
+############################################################################
+# D. Accumulo, 3 nodes
+############################################################################
+
+# Master
+docker run -d --ip=10.10.10.10 --net my_network \
+    -p 50095:50095 \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e HDFS_VOLUMES=hdfs://hadoop01:9000/accumulo \
+    -e NAMENODE_URI=hdfs://hadoop01:9000/ \
+    -e MY_HOSTNAME=10.10.10.10 \
+    -e MASTER_HOSTS=10.10.10.10 \
+    -e GC_HOSTS=10.10.10.11 \
+    -e SLAVE_HOSTS=10.10.10.12,10.10.10.13,10.10.10.14 \
+    -e MONITOR_HOSTS=10.10.10.15 \
+    -e TRACER_HOSTS=10.10.10.16 \
+    --link hadoop01:hadoop01 \
+    --name acc-master \
+    cybermaggedon/accumulo-gaffer:0.7.4b /start-process master
+
+# GC
+docker run -d --ip=10.10.10.11 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e HDFS_VOLUMES=hdfs://hadoop01:9000/accumulo \
+    -e NAMENODE_URI=hdfs://hadoop01:9000/ \
+    -e MY_HOSTNAME=10.10.10.11 \
+    -e MASTER_HOSTS=10.10.10.10 \
+    -e GC_HOSTS=10.10.10.11 \
+    -e SLAVE_HOSTS=10.10.10.12,10.10.10.13,10.10.10.14 \
+    -e MONITOR_HOSTS=10.10.10.15 \
+    -e TRACER_HOSTS=10.10.10.16 \
+    --link hadoop01:hadoop01 \
+    --name acc-gc cybermaggedon/accumulo-gaffer:0.7.4b /start-process gc
+
+# Slave 1
+docker run -d --ip=10.10.10.12 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e HDFS_VOLUMES=hdfs://hadoop01:9000/accumulo \
+    -e NAMENODE_URI=hdfs://hadoop01:9000/ \
+    -e MY_HOSTNAME=10.10.10.12 \
+    -e MASTER_HOSTS=10.10.10.10 \
+    -e GC_HOSTS=10.10.10.11 \
+    -e SLAVE_HOSTS=10.10.10.12,10.10.10.13,10.10.10.14 \
+    -e MONITOR_HOSTS=10.10.10.15 \
+    -e TRACER_HOSTS=10.10.10.16 \
+    --link hadoop01:hadoop01 \
+    --name acc-slave1 cybermaggedon/accumulo-gaffer:0.7.4b \
+    /start-process tserver
+
+# Slave 2
+docker run -d --ip=10.10.10.13 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e HDFS_VOLUMES=hdfs://hadoop01:9000/accumulo \
+    -e NAMENODE_URI=hdfs://hadoop01:9000/ \
+    -e MY_HOSTNAME=10.10.10.13 \
+    -e MASTER_HOSTS=10.10.10.10 \
+    -e GC_HOSTS=10.10.10.11 \
+    -e SLAVE_HOSTS=10.10.10.12,10.10.10.13,10.10.10.14 \
+    -e MONITOR_HOSTS=10.10.10.15 \
+    -e TRACER_HOSTS=10.10.10.16 \
+    --link hadoop01:hadoop01 \
+    --name acc-slave2 cybermaggedon/accumulo-gaffer:0.7.4b \
+    /start-process tserver
+
+# Slave 3
+docker run -d --ip=10.10.10.14 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e HDFS_VOLUMES=hdfs://hadoop01:9000/accumulo \
+    -e NAMENODE_URI=hdfs://hadoop01:9000/ \
+    -e MY_HOSTNAME=10.10.10.14 \
+    -e MASTER_HOSTS=10.10.10.10 \
+    -e GC_HOSTS=10.10.10.11 \
+    -e SLAVE_HOSTS=10.10.10.12,10.10.10.13,10.10.10.14 \
+    -e MONITOR_HOSTS=10.10.10.15 \
+    -e TRACER_HOSTS=10.10.10.16 \
+    --link hadoop01:hadoop01 \
+    --name acc-slave3 cybermaggedon/accumulo-gaffer:0.7.4b \
+    /start-process tserver
+
+# Monitor - this has the web server.
+docker run -d --ip=10.10.10.15 --net my_network \
+    -p 9995:9995 \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e HDFS_VOLUMES=hdfs://hadoop01:9000/accumulo \
+    -e NAMENODE_URI=hdfs://hadoop01:9000/ \
+    -e MY_HOSTNAME=10.10.10.15 \
+    -e MASTER_HOSTS=10.10.10.10 \
+    -e GC_HOSTS=10.10.10.11 \
+    -e SLAVE_HOSTS=10.10.10.12,10.10.10.13,10.10.10.14 \
+    -e MONITOR_HOSTS=10.10.10.15 \
+    -e TRACER_HOSTS=10.10.10.16 \
+    --link hadoop01:hadoop01 \
+    --name acc-monitor \
+    cybermaggedon/accumulo-gaffer:0.7.4b /start-process monitor
+
+docker run -d --ip=10.10.10.16 --net my_network \
+    -e ZOOKEEPERS=10.10.5.10,10.10.5.11,10.10.5.12 \
+    -e HDFS_VOLUMES=hdfs://hadoop01:9000/accumulo \
+    -e NAMENODE_URI=hdfs://hadoop01:9000/ \
+    -e MY_HOSTNAME=10.10.10.16 \
+    -e MASTER_HOSTS=10.10.10.10 \
+    -e GC_HOSTS=10.10.10.11 \
+    -e SLAVE_HOSTS=10.10.10.12,10.10.10.13,10.10.10.14 \
+    -e MONITOR_HOSTS=10.10.10.15 \
+    -e TRACER_HOSTS=10.10.10.16 \
+      --link hadoop01:hadoop01 \
+      --name acc-tracer \
+      cybermaggedon/accumulo-gaffer:0.7.4b /start-process tracer
+
+
+############################################################################
+# E. Usage notes
+############################################################################
+
+1. execute each of the docker commands above (in the correct sequence)
+
+2. view running containers or get a container id with:
+$ docker ps
+
+3. get a login shell on one of the accumulo containers:
+$ docker exec -it <container_id> bash
+
+4. inside an accumulo container, accumulo can be found at: 
+# ls -al /usr/local/accumulo-1.8.1/
+
+5. test the accumulo shell:
+# /usr/local/accumulo-1.8.1/bin/accumulo shell -u root [password: "accumulo"]
+
+6. inspect an accumulo rfile
+
+6.1. you might need to set JAVA_HOME first (oddly?), e.g.:
+# export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.131-1.b12.fc25.x86_64/jre
+
+6.2. locate the rfiles for the default tablet:
+# /usr/local/hadoop/bin/hadoop fs -ls /accumulo/tables/1/default_tablet
+
+6.3. print basic rfile metadata:
+# /usr/local/accumulo-1.8.1/bin/accumulo org.apache.accumulo.core.file.rfile.PrintInfo \
+  hdfs://hadoop01:9000/accumulo/tables/1/default_tablet/<rfile_name>.rf
+
+
+############################################################################
+# F. Next steps
+############################################################################
+
+1. create Kogentix/DBS containers
+1.1. hadoop
+1.2. zookeeper
+1.3. accumulo
+1.4. spark
+1.5. alluxio
+1.6. kerberos
+1.7. presto
+
+2. modify docker configuration to allow persistent storage
+
+3. integrations
+3.1. kubernetes
+3.2. weave-net
+
+4. setup a private Kogentix/DBS docker repo
+
+
