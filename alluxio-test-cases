@@ -1,0 +1,33 @@
+A. Batch use-case (Reference FRDM-TV)
+-------------------------------------
+ 
+A.1. Files -> Parquet on Alluxio/HDFS [tested]
+A.2. Files -> Parquet on Alluxio/S3 [tested]
+ 
+A.3. SQL Access Layer1: HiveQL <-> Parquet on Alluxio/HDFS
+A.4. SQL Access Layer1: HiveQL <-> Parquet on Alluxio/S3
+ 
+A.5. SQL Access Layer2: SparkSQL <-> Parquet on Alluxio/HDFS
+A.6. SQL Access Layer2: SparkSQL <-> Parquet on Alluxio/S3
+ 
+* SQL Access Layer3: Presto <-> Parquet on Alluxio/HDFS *
+* SQL Access Layer3: Presto <-> Parquet on Alluxio/S3 *
+ 
+ 
+B. Realtime use-case (Reference Customer science)
+-------------------------------------------------
+ 
+B.1. Stream -> HBase -> Alluxio/HDFS
+B.2. Stream -> HBase -> Alluxio/S3
+ 
+B.3. To Parquet: HBase (Hive storage handler) -> Parquet on Alluxio/HDFS
+B.4. To Parquet: HBase (Hive storage handler) -> Parquet on Alluxio/S3
+ 
+B.5. To Parquet: HBase (SparkSQL) -> Parquet on Alluxio/HDFS
+B.6. To Parquet: HBase (SparkSQL) -> Parquet on Alluxio/S3
+ 
+B.7. SQL Access Layer4: HiveQL <-> HBase (Hive storage handler) on Alluxio/HDFS
+B.8. SQL Access Layer4: HiveQL <-> HBase (Hive storage handler) on Alluxio/S3
+ 
+B.9. SQL Access Layer5: SparkSQL <-> HBase on Alluxio/HDFS
+B.10. SQL Access Layer5: SparkSQL <-> HBase on Alluxio/S3
