@@ -1,6 +1,6 @@
-A. Batch use-case (Reference FRDM-TV)
--------------------------------------
- 
+A. Batch use-case
+-----------------
+
 A.1. Files -> Parquet on Alluxio/HDFS [tested]
 A.2. Files -> Parquet on Alluxio/S3 [tested]
  
@@ -14,8 +14,8 @@ A.6. SQL Access Layer2: SparkSQL <-> Parquet on Alluxio/S3
 * SQL Access Layer3: Presto <-> Parquet on Alluxio/S3 *
  
  
-B. Realtime use-case (Reference Customer science)
--------------------------------------------------
+B. Realtime use-case
+--------------------
  
 B.1. Stream -> HBase -> Alluxio/HDFS
 B.2. Stream -> HBase -> Alluxio/S3
