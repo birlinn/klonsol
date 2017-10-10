@@ -10,9 +10,6 @@ A.4. SQL Access Layer1: HiveQL <-> Parquet on Alluxio/S3
 A.5. SQL Access Layer2: SparkSQL <-> Parquet on Alluxio/HDFS
 A.6. SQL Access Layer2: SparkSQL <-> Parquet on Alluxio/S3
  
-* SQL Access Layer3: Presto <-> Parquet on Alluxio/HDFS *
-* SQL Access Layer3: Presto <-> Parquet on Alluxio/S3 *
- 
  
 B. Realtime use-case
 --------------------
