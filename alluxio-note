@@ -1,0 +1,23 @@
+Below are the changes we made to make Spark-Submit work in Cluster mode
+ 
+Modified Alluxio Client JAR :-
+Open the Alluxio spark and hadoop client JARs
+Remove the 'org/codehaus/jackson' folder
+Remove the 'com/fasterxml/jackson' folder
+Rename the 'alluxio-enterprise-1.6.0-hadoop-client.jar' to 'alluxio-enterprise-1.6.0-hadoop-client-mod.jar'
+Rename the 'alluxio-enterprise-1.6.0-spark-client.jar' to 'alluxio-enterprise-1.6.0-spark-client-mod.jar'
+ 
+IN ALL THE NODES:-
+Move modified JARs to location '/home/support'  ß THIS NEEDS TO BE CHANGED
+ 
+Rename the original Alluxio client JARs in '/opt/cloudera/parcels/CDH-5.12.0-1.cdh5.12.0.p0.29/jars/' to 'alluxio-enterprise-1.6.0-hadoop-client.jar.bkp' and 'alluxio-enterprise-1.6.0-spark-client.jar.bkp'. This will prevent spark-env.sh from picking up the old JAR’s via ‘/etc/spark/conf/classpath.txt’.
+ 
+------------------- THIS SECTION NEEDS TO BE REVIEWED ---------------------
+EDIT the classpath.txt in location /etc/spark/conf/ to add the new Alluxio JAR paths and remove the old JAR paths in all the gateway nodes.
+                - Modified Alluxio JAR paths:
+                                '/home/support/alluxio-enterprise-1.6.0-hadoop-client-mod.jar'
+                                '/home/support/alluxio-enterprise-1.6.0-spark-client-mod.jar'
+ 
+COPY the modified Alluxio client JARs in '/home/support/' to '/opt/cloudera/parcels/CDH-5.12.0-1.cdh5.12.0.p0.29/jars/alluxio-enterprise-1.6.0-hadoop-client.jar' and '/opt/cloudera/parcels/CDH-5.12.0-1.cdh5.12.0.p0.29/jars/alluxio-enterprise-1.6.0-spark-client.jar'
+ 
+Make sure the Alluxio Spark and Hadoop client JARs have 755 permission.
