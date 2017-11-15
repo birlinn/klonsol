@@ -1,23 +1,24 @@
-Below are the changes we made to make Spark-Submit work in Cluster mode
+Write–up of FCFRDM Spark 1.6 issues encountered and implemented workaround follows:
  
-Modified Alluxio Client JAR :-
-Open the Alluxio spark and hadoop client JARs
-Remove the 'org/codehaus/jackson' folder
-Remove the 'com/fasterxml/jackson' folder
-Rename the 'alluxio-enterprise-1.6.0-hadoop-client.jar' to 'alluxio-enterprise-1.6.0-hadoop-client-mod.jar'
-Rename the 'alluxio-enterprise-1.6.0-spark-client.jar' to 'alluxio-enterprise-1.6.0-spark-client-mod.jar'
+Issue
  
-IN ALL THE NODES:-
-Move modified JARs to location '/home/support'  ß THIS NEEDS TO BE CHANGED
+Spark 1.6 default JARs includes many Jackson JARs, specifically ‘jackson-databind-2.2.3.jar’. This creates a conflict with the ‘alluxio-enterprise-1.6.0’ JARs which make use of ‘jackson-databind-2.6.7’. The Alluxio client JARs are included in the Spark executor classpath from both the Spark 1.6 default classpath and from the Hadoop classpath.
  
-Rename the original Alluxio client JARs in '/opt/cloudera/parcels/CDH-5.12.0-1.cdh5.12.0.p0.29/jars/' to 'alluxio-enterprise-1.6.0-hadoop-client.jar.bkp' and 'alluxio-enterprise-1.6.0-spark-client.jar.bkp'. This will prevent spark-env.sh from picking up the old JAR’s via ‘/etc/spark/conf/classpath.txt’.
+Our Resolution
  
-------------------- THIS SECTION NEEDS TO BE REVIEWED ---------------------
-EDIT the classpath.txt in location /etc/spark/conf/ to add the new Alluxio JAR paths and remove the old JAR paths in all the gateway nodes.
-                - Modified Alluxio JAR paths:
-                                '/home/support/alluxio-enterprise-1.6.0-hadoop-client-mod.jar'
-                                '/home/support/alluxio-enterprise-1.6.0-spark-client-mod.jar'
+To make Spark 1.6 work with the Alluxio 1.6 client JAR, we removed all Jackson JARs from the client JAR and then replaced the old Alluxio JAR with the modified one. This fix was done for all Spark workers. Doing this resolved the versioning conflict.
  
-COPY the modified Alluxio client JARs in '/home/support/' to '/opt/cloudera/parcels/CDH-5.12.0-1.cdh5.12.0.p0.29/jars/alluxio-enterprise-1.6.0-hadoop-client.jar' and '/opt/cloudera/parcels/CDH-5.12.0-1.cdh5.12.0.p0.29/jars/alluxio-enterprise-1.6.0-spark-client.jar'
+Comments
  
-Make sure the Alluxio Spark and Hadoop client JARs have 755 permission.
+The issue with our fix is that both Spark 1.6 and Spark 2.2 make use of the Hadoop classpath when creating the Spark classpath for the executors. Using the original Alluxio client JAR will cause a conflict with Spark 1.6. Using the modified JAR could cause issues with any services that do not have their own Jackson JARs. Replacing the Jackson JARs with an older version would cause version conflicts with Spark 2.2 for the same reason.
+ 
+Potential Solutions
+ 
+1. Run Spark 1.6 in a separate cluster.
+2. Run Spark 1.6 and Spark 2.2 in the same cluster: shade the Alluxio client Jackson JARs and use the new shaded client for Spark 1.6 and Hadoop. NB: this could break any programs that rely on Hadoop Jackson JARs. Those programs would have to include the Jackson JARs on their own.
+3. Run Spark 2.2 only: migrate application code to Spark 2.2.
+ 
+Recommendation
+ 
+The safest course of action would be to migrate Spark 1.6 code to Spark 2.2 (solution 3, above). It is probably advisable to carefully evaluate the migration path before initiating any work: some tricks to reduce the amount of work might be available.
+ 
